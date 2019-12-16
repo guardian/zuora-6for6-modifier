@@ -1,0 +1,11 @@
+package com.gu.zuora6for6modifier
+
+case class SubData(
+    subName: String,
+    productPlanId6For6: String,
+    productPlanIdMain: String,
+    start6For6Date: String,
+    startMainDate: String,
+    planId6For6: String,
+    planIdMain: String
+)

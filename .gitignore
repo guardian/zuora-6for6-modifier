@@ -1,0 +1,4 @@
+application.conf
+target
+.idea
+*.csv
