@@ -29,7 +29,7 @@ object Subscription {
   val productRatePlanNamePrefixMain = "GW Oct 18 - Quarterly"
 
   def extractData(subName: String, json: String): Either[String, SubData] = {
-    def plusWeek(s: String): String = LocalDate.parse(s).plusWeeks(1).toString
+    def plus2Months(s: String): String = LocalDate.parse(s).plusMonths(2).toString
     for {
       sub <- decode[Subscription](json).left.map(_.getMessage)
       valid <- validForModification(sub)
@@ -47,7 +47,7 @@ object Subscription {
       productChargeId6For6 = charge6For6.productRatePlanChargeId,
       productPlanIdMain = planMain.productRatePlanId,
       start6For6Date = charge6For6.effectiveStartDate,
-      startMainDate = plusWeek(chargeMain.effectiveStartDate),
+      startMainDate = plus2Months(charge6For6.effectiveStartDate),
       planId6For6 = plan6For6.id,
       planIdMain = planMain.id
     )
