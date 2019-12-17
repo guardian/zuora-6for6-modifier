@@ -41,12 +41,10 @@ object Subscription {
         .find(_.ratePlanName.startsWith(productRatePlanNamePrefixMain))
         .toRight("Can't find main plan")
       chargeMain <- planMain.ratePlanCharges.headOption.toRight("Can't find main charge")
-      productPlanId6For6 <- Config.Zuora.productPlanId6For6
-        .get(plan6For6.ratePlanName)
-        .toRight("Can't find corresponding 6 for 7 plan")
     } yield SubData(
       subName,
-      productPlanId6For6,
+      productPlanId6For6 = plan6For6.productRatePlanId,
+      productChargeId6For6 = charge6For6.productRatePlanChargeId,
       productPlanIdMain = planMain.productRatePlanId,
       start6For6Date = charge6For6.effectiveStartDate,
       startMainDate = plusWeek(chargeMain.effectiveStartDate),

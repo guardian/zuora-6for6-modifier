@@ -2,3 +2,4 @@ application.conf
 target
 .idea
 *.csv
+*.txt

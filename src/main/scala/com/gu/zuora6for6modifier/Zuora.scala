@@ -78,7 +78,14 @@ trait ZuoraLive extends Zuora {
              |  "add": [
              |    {
              |      "contractEffectiveDate": "${subData.start6For6Date}",
-             |      "productRatePlanId": "${subData.productPlanId6For6}"
+             |      "productRatePlanId": "${subData.productPlanId6For6}",
+             |      "chargeOverrides": [
+             |        {
+             |          "productRatePlanChargeId": "${subData.productChargeId6For6}",
+             |          "billingPeriod": "Specific_Months",
+             |          "specificBillingPeriod": 2
+             |        }
+             |      ]
              |    },
              |    {
              |      "contractEffectiveDate": "${subData.startMainDate}",
@@ -92,7 +99,7 @@ trait ZuoraLive extends Zuora {
              |    },
              |    {
              |      "ratePlanId": "${subData.planIdMain}",
-             |      "contractEffectiveDate": "${subData.startMainDate}"
+             |      "contractEffectiveDate": "${subData.start6For6Date}"
              |    }
              |  ]
              |}
@@ -121,9 +128,8 @@ trait ZuoraLive extends Zuora {
 object ZuoraHostSelector {
   val host: String =
     Config.Zuora.stage match {
-      case "DEV" | "dev"   => "https://rest.apisandbox.zuora.com"
-      case "PROD" | "prod" => "https://rest.zuora.com"
-      case _               => "https://rest.apisandbox.zuora.com"
+      case "DEV" | "UAT" => "https://rest.apisandbox.zuora.com"
+      case "PROD"        => "https://rest.zuora.com"
     }
 }
 
