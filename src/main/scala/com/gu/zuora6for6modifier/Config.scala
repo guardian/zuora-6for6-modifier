@@ -13,6 +13,5 @@ object Config {
       "GW Oct 18 - Six for Six - Domestic" -> conf.getString("zuora.productPlanId6For6.Domestic"),
       "GW Oct 18 - Six for Six - ROW" -> conf.getString("zuora.productPlanId6For6.ROW")
     )
-    lazy val productPlanIdMain: String = conf.getString("zuora.productPlanIdMain")
   }
 }

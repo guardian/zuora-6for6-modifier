@@ -1,23 +1,25 @@
 package com.gu.zuora6for6modifier
 
+import java.time.LocalDate
+
 import io.circe.generic.auto._
 import io.circe.parser.decode
 
 case class Subscription(ratePlans: List[Plan])
 
 case class Plan(
-  id: String,
-  productRatePlanId: String,
-  ratePlanName: String,
-  lastChangeType: Option[String],
-  ratePlanCharges: List[Charge]
+    id: String,
+    productRatePlanId: String,
+    ratePlanName: String,
+    lastChangeType: Option[String],
+    ratePlanCharges: List[Charge]
 )
 
 case class Charge(
-  id: String,
-  productRatePlanChargeId: String,
-  effectiveStartDate: String,
-  effectiveEndDate: String
+    id: String,
+    productRatePlanChargeId: String,
+    effectiveStartDate: String,
+    effectiveEndDate: String
 )
 
 object Subscription {
@@ -27,6 +29,7 @@ object Subscription {
   val productRatePlanNamePrefixMain = "GW Oct 18 - Quarterly"
 
   def extractData(subName: String, json: String): Either[String, SubData] = {
+    def plusWeek(s: String): String = LocalDate.parse(s).plusWeeks(1).toString
     for {
       sub <- decode[Subscription](json).left.map(_.getMessage)
       valid <- validForModification(sub)
@@ -44,9 +47,9 @@ object Subscription {
     } yield SubData(
       subName,
       productPlanId6For6,
-      productPlanIdMain = Config.Zuora.productPlanIdMain,
+      productPlanIdMain = planMain.productRatePlanId,
       start6For6Date = charge6For6.effectiveStartDate,
-      startMainDate = chargeMain.effectiveStartDate,
+      startMainDate = plusWeek(chargeMain.effectiveStartDate),
       planId6For6 = plan6For6.id,
       planIdMain = planMain.id
     )
