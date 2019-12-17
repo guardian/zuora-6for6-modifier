@@ -15,7 +15,11 @@ object Zuora {
   trait Service[R] {
     val token: ZIO[R, Throwable, String]
     def getSubscription(accessToken: String, subName: String): ZIO[R, Throwable, String]
-    def putSubscription(accessToken: String, subData: SubData): ZIO[R, Throwable, String]
+    def putSubscription(
+        accessToken: String,
+        subData: SubscriptionData,
+        body: SubscriptionData => String
+    ): ZIO[R, Throwable, String]
   }
 
   object > extends Zuora.Service[Zuora] {
@@ -25,8 +29,12 @@ object Zuora {
     def getSubscription(accessToken: String, subName: String): ZIO[Zuora, Throwable, String] =
       ZIO.accessM(_.zuora.getSubscription(accessToken, subName))
 
-    def putSubscription(accessToken: String, subData: SubData): ZIO[Zuora, Throwable, String] =
-      ZIO.accessM(_.zuora.putSubscription(accessToken, subData))
+    def putSubscription(
+        accessToken: String,
+        subData: SubscriptionData,
+        body: SubscriptionData => String
+    ): ZIO[Zuora, Throwable, String] =
+      ZIO.accessM(_.zuora.putSubscription(accessToken, subData, body))
   }
 }
 
@@ -70,45 +78,14 @@ trait ZuoraLive extends Zuora {
 
     def putSubscription(
         accessToken: String,
-        subData: SubData
+        subData: SubscriptionData,
+        body: SubscriptionData => String
     ): ZIO[Any, Throwable, String] = {
-      val body =
-        s"""
-             |{
-             |  "add": [
-             |    {
-             |      "contractEffectiveDate": "${subData.start6For6Date}",
-             |      "productRatePlanId": "${subData.productPlanId6For6}",
-             |      "chargeOverrides": [
-             |        {
-             |          "productRatePlanChargeId": "${subData.productChargeId6For6}",
-             |          "billingPeriod": "Specific_Months",
-             |          "specificBillingPeriod": 2
-             |        }
-             |      ]
-             |    },
-             |    {
-             |      "contractEffectiveDate": "${subData.startMainDate}",
-             |      "productRatePlanId": "${subData.productPlanIdMain}"
-             |    }
-             |  ],
-             |  "remove": [
-             |    {
-             |      "ratePlanId": "${subData.planId6For6}",
-             |      "contractEffectiveDate": "${subData.start6For6Date}"
-             |    },
-             |    {
-             |      "ratePlanId": "${subData.planIdMain}",
-             |      "contractEffectiveDate": "${subData.start6For6Date}"
-             |    }
-             |  ]
-             |}
-             |""".stripMargin
       val response =
-        HttpWithLongTimeout(s"$host/v1/subscriptions/${subData.subName}")
+        HttpWithLongTimeout(s"$host/v1/subscriptions/${subData.subscriptionName}")
           .header("Authorization", s"Bearer $accessToken")
           .header("Content-type", "application/json")
-          .put(body)
+          .put(body(subData))
           .method("PUT")
           .asString
       response.code match {
@@ -123,6 +100,68 @@ trait ZuoraLive extends Zuora {
       }
     }
   }
+}
+
+object PutRequests {
+
+  def extendTo2Months(subData: SubscriptionData): String =
+    s"""
+       |{
+       |  "add": [
+       |    {
+       |      "contractEffectiveDate": "${subData.start6For6Date}",
+       |      "productRatePlanId": "${subData.productPlanId6For6}",
+       |      "chargeOverrides": [
+       |        {
+       |          "productRatePlanChargeId": "${subData.productChargeId6For6}",
+       |          "billingPeriod": "Specific_Months",
+       |          "specificBillingPeriod": 2
+       |        }
+       |      ]
+       |    },
+       |    {
+       |      "contractEffectiveDate": "${subData.startMainDate}",
+       |      "productRatePlanId": "${subData.productPlanIdMain}"
+       |    }
+       |  ],
+       |  "remove": [
+       |    {
+       |      "ratePlanId": "${subData.planId6For6}",
+       |      "contractEffectiveDate": "${subData.start6For6Date}"
+       |    },
+       |    {
+       |      "ratePlanId": "${subData.planIdMain}",
+       |      "contractEffectiveDate": "${subData.start6For6Date}"
+       |    }
+       |  ]
+       |}
+       |""".stripMargin
+
+  def startWeekLater(subData: SubscriptionData): String =
+    s"""
+         |{
+         |  "add": [
+         |    {
+         |      "contractEffectiveDate": "${Config.keyDatePlusWeek}",
+         |      "productRatePlanId": "${subData.productPlanId6For6}"
+         |    },
+         |    {
+         |      "contractEffectiveDate": "${Config.keyDatePlus7Weeks}",
+         |      "productRatePlanId": "${subData.productPlanIdMain}"
+         |    }
+         |  ],
+         |  "remove": [
+         |    {
+         |      "ratePlanId": "${subData.planId6For6}",
+         |      "contractEffectiveDate": "${Config.keyDate}"
+         |    },
+         |    {
+         |      "ratePlanId": "${subData.planIdMain}",
+         |      "contractEffectiveDate": "${Config.keyDate}"
+         |    }
+         |  ]
+         |}
+         |""".stripMargin
 }
 
 object ZuoraHostSelector {
