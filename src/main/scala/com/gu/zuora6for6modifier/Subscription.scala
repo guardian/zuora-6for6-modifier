@@ -31,6 +31,10 @@ object Subscription {
       subscriptionName: String,
       json: String
   ): Either[String, SubscriptionData] = {
+    /*
+     * Ideally the plan would be extended to 7 weeks, but because of an apparent bug
+     * in the Zuora API we extend to 2 months.  Happy Christmas subs!
+     */
     def plus2Months(s: String): String = LocalDate.parse(s).plusMonths(2).toString
     for {
       sub <- decode[Subscription](json).left.map(_.getMessage)
