@@ -1,7 +1,7 @@
 package com.gu.zuora6for6modifier
 
-case class SubData(
-    subName: String,
+case class SubscriptionData(
+    subscriptionName: String,
     productPlanId6For6: String,
     productChargeId6For6: String,
     productPlanIdMain: String,
