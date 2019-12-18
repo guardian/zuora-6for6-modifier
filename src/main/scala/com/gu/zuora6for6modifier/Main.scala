@@ -58,6 +58,13 @@ object Main extends App {
       }
     } yield ()
 
+  /**
+    * @param args  valid values of arg(0) are:<ul>
+    *              <li>"extend" to extend the 6-for-6 period so that it includes at least 6 issues</li>
+    *              <li>"postpone" to postpone the start of the 6-for-6 period by a week</li></ul>
+    *              In both cases the start of the subsequent quarterly plan is postponed
+    *              until the new end of the introductory plan.
+    */
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val action = args.headOption
     val process = action match {
