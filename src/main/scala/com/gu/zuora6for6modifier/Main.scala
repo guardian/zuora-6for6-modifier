@@ -1,5 +1,6 @@
 package com.gu.zuora6for6modifier
 
+import com.gu.zuora6for6modifier.Subscription.{extractDataForPostponing, extractDataForPostponingMainRatePlan}
 import zio.console.putStrLn
 import zio.{App, ExitCode, URIO, ZEnv, ZIO}
 
@@ -18,15 +19,17 @@ object Main extends App {
   def run(args: List[String]): URIO[ZEnv, ExitCode] = {
     val action = args.headOption
     val process = action match {
-      case Some("extend")   => Extender.extendSubscriptions
-      case Some("postpone") => Postponer.postponeSubscriptions
-      case _                => ZIO.dieMessage("No identifying action given")
+      case Some("extend")       => Extender.extend6For6RatePlans
+      case Some("postpone")     => Postponer.postpone6For6RatePlans
+      case Some("postponeMain") => Postponer.postponeMainRatePlans
+      case _                    => ZIO.dieMessage("No identifying action given")
     }
     process
       .provideCustomLayer(ZuoraLive.impl)
-      .foldM(
-        e => putStrLn(s"Failed: ${e.getMessage}").as(ExitCode.failure),
-        _ => ZIO.succeed(ExitCode.success)
+      .tapError(e => putStrLn(s"Failed: ${e.getMessage}"))
+      .fold(
+        _ => ExitCode.failure,
+        _ => ExitCode.success
       )
   }
 }

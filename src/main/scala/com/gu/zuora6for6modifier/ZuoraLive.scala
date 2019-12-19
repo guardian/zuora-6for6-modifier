@@ -85,12 +85,14 @@ object ZuoraLive {
             } yield responseBody
           }
 
-          def extendSubscription(data: SubscriptionData): Task[Unit] = {
-            putSubscription(data, PutRequests.extendTo7Weeks)
-          }
+          def extend6For6RatePlan(subscriptionData: SubscriptionData): Task[Unit] =
+            putSubscription(subscriptionData, PutRequests.extendTo7Weeks)
 
-          def postponeSubscription(data: SubscriptionData): Task[Unit] =
-            putSubscription(data, PutRequests.startWeekLater)
+          def postpone6For6RatePlan(subscriptionData: SubscriptionData): Task[Unit] =
+            putSubscription(subscriptionData, PutRequests.start6For6RatePlanWeekLater)
+
+          def postponeMainRatePlan(subscriptionData: SubscriptionData): Task[Unit] =
+            putSubscription(subscriptionData, PutRequests.startMainRatePlanWeekLater)
         }
       }
     }
@@ -105,8 +107,8 @@ object ZuoraLive {
          |{
          |  "add": [
          |    {
-         |      "contractEffectiveDate": "${data.start6For6Date}",
          |      "productRatePlanId": "${data.productPlanId6For6}",
+         |      "contractEffectiveDate": "${data.start6For6Date}",
          |      "chargeOverrides": [
          |        {
          |          "productRatePlanChargeId": "${data.productChargeId6For6}",
@@ -116,8 +118,8 @@ object ZuoraLive {
          |      ]
          |    },
          |    {
-         |      "contractEffectiveDate": "${data.startMainDate}",
          |      "productRatePlanId": "${data.productPlanIdMain}"
+         |      "contractEffectiveDate": "${data.startMainDate}",
          |    }
          |  ],
          |  "remove": [
@@ -133,7 +135,7 @@ object ZuoraLive {
          |}
          |""".stripMargin
 
-    def startWeekLater(data: SubscriptionData): String =
+    def start6For6RatePlanWeekLater(data: SubscriptionData): String =
       s"""
          |{
          |  "add": [
@@ -151,6 +153,24 @@ object ZuoraLive {
          |      "ratePlanId": "${data.planId6For6}",
          |      "contractEffectiveDate": "${Config.keyDate}"
          |    },
+         |    {
+         |      "ratePlanId": "${data.planIdMain}",
+         |      "contractEffectiveDate": "${Config.keyDate}"
+         |    }
+         |  ]
+         |}
+         |""".stripMargin
+
+    def startMainRatePlanWeekLater(data: SubscriptionData): String =
+      s"""
+         |{
+         |  "add": [
+         |    {
+         |      "productRatePlanId": "${data.productPlanIdMain}",
+         |      "contractEffectiveDate": "${Config.keyDatePlusWeek}"
+         |    }
+         |  ],
+         |  "remove": [
          |    {
          |      "ratePlanId": "${data.planIdMain}",
          |      "contractEffectiveDate": "${Config.keyDate}"

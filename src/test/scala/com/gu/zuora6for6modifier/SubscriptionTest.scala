@@ -7,21 +7,20 @@ import scala.io.Source
 
 class SubscriptionTest extends FunSuite {
 
-  private def toJsonString(resource: String): String = {
-    val json = Source.fromResource(resource).mkString
-    parse(json).map(_.spaces2).getOrElse(throw new RuntimeException(s"Can't decode:\n$json"))
-  }
+  private def contentOf(resourceName: String): String =
+    Source.fromResource(resourceName).mkString
 
   private def test(methodName: String)(testDescription: String)(body: => Any): Unit =
     super.test(s"$methodName: $testDescription")(body)
 
   private val testExtractDataForExtending = test("extractDataForExtending") _
   private val testExtractDataForPostponing = test("extractDataForPostponing") _
+  private val testExtractDataForPostponingMainRatePlan = test("extractDataForPostponingMainRatePlan") _
 
   testExtractDataForExtending("extracts correct data from valid subscription") {
     val data = Subscription.extractDataForExtending(
       subscriptionName = "subNum",
-      json = toJsonString("ToExtend.json")
+      json = contentOf("ToExtend.json")
     )
     assertEquals(
       data,
@@ -40,10 +39,10 @@ class SubscriptionTest extends FunSuite {
     )
   }
 
-  testExtractDataForExtending("won't try to extend an already extended subscription") {
+  testExtractDataForExtending("won't try to extend an already extended rate plan") {
     val data = Subscription.extractDataForExtending(
       subscriptionName = "subNum",
-      json = toJsonString("AlreadyExtended.json")
+      json = contentOf("AlreadyExtended.json")
     )
     assert(data.isLeft)
   }
@@ -51,7 +50,7 @@ class SubscriptionTest extends FunSuite {
   testExtractDataForPostponing("extracts correct data from valid subscription") {
     val data = Subscription.extractDataForPostponing(
       subscriptionName = "subNum",
-      json = toJsonString("FirstIssueInChristmasWeek.json")
+      json = contentOf("FirstIssueInChristmasWeek.json")
     )
     assertEquals(
       data,
@@ -70,10 +69,40 @@ class SubscriptionTest extends FunSuite {
     )
   }
 
-  testExtractDataForPostponing("won't try to push back an already postponed subscription") {
+  testExtractDataForPostponing("won't try to push back an already postponed 6-for-6 rate plan") {
     val data = Subscription.extractDataForPostponing(
       subscriptionName = "subNum",
-      json = toJsonString("AlreadyPushedBack.json")
+      json = contentOf("AlreadyPushedBack.json")
+    )
+    assert(data.isLeft)
+  }
+
+  testExtractDataForPostponingMainRatePlan("extracts correct data from valid subscription") {
+    val data = Subscription.extractDataForPostponingMainRatePlan(
+      subscriptionName = "subNum",
+      json = contentOf("FirstBillAfter6For6InChristmasWeek.json")
+    )
+    assertEquals(
+      data,
+      Right(
+        SubscriptionData(
+          subscriptionName = "subNum",
+          productPlanId6For6 = "",
+          productChargeId6For6 = "",
+          productPlanIdMain = "2c92a0fe6619b4b301661aa494392ee2",
+          start6For6Date = "",
+          startMainDate = "",
+          planId6For6 = "",
+          planIdMain = "idMain"
+        )
+      )
+    )
+  }
+
+  testExtractDataForPostponingMainRatePlan("won't try to push back an already postponed main rate plan") {
+    val data = Subscription.extractDataForPostponingMainRatePlan(
+      subscriptionName = "subNum",
+      json = contentOf("MainRatePlanAlreadyPushedBack.json")
     )
     assert(data.isLeft)
   }
