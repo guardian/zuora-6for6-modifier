@@ -121,7 +121,10 @@ object Subscription {
 
   private def validForPostponing(subscription: Subscription): Either[Throwable, Subscription] =
     for {
-      _ <- test(subscription, _.ratePlans.length == 1)("Wrong number of plans")
+      _ <- test(
+        subscription,
+        _.ratePlans.count(_.ratePlanName.startsWith(productRatePlanNamePrefixMain)) == 1
+      )("Has multiple main plans")
       _ <- test(
         subscription,
         _.ratePlans
