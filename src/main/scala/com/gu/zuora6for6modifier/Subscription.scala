@@ -25,7 +25,7 @@ case class Charge(
 object Subscription {
 
   val productRatePlanNamePrefix6For6 = "GW Oct 18 - Six for Six"
-  val productRatePlanNamePrefixMain = "GW Oct 18 - Quarterly"
+  val productRatePlanNamePrefixMain = "GW Oct 18 - "
 
   def extractDataForExtending(
       subscriptionName: String,
@@ -102,11 +102,6 @@ object Subscription {
     for {
       sub <- decode[Subscription](json)
       valid <- validForPostponing(sub)
-      plan6For6 <- valid.ratePlans
-        .find(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6))
-        .toRight(new RuntimeException("Can't find 6 for 6 plan"))
-      charge6For6 <- plan6For6.ratePlanCharges.headOption
-        .toRight(new RuntimeException("Can't find 6 for 6 charge"))
       planMain <- valid.ratePlans
         .find(_.ratePlanName.startsWith(productRatePlanNamePrefixMain))
         .toRight(new RuntimeException("Can't find main plan"))
@@ -114,25 +109,19 @@ object Subscription {
         .toRight(new RuntimeException("Can't find 6 for 6 charge"))
     } yield SubscriptionData(
       subName,
-      productPlanId6For6 = plan6For6.productRatePlanId,
-      productChargeId6For6 = charge6For6.productRatePlanChargeId,
+      productPlanId6For6 = "",
+      productChargeId6For6 = "",
       productPlanIdMain = planMain.productRatePlanId,
-      start6For6Date = plusWeek(charge6For6.effectiveStartDate),
+      start6For6Date = "",
       startMainDate = plusWeek(chargeMain.effectiveStartDate),
-      planId6For6 = plan6For6.id,
+      planId6For6 = "",
       planIdMain = planMain.id
     )
   }
 
   private def validForPostponing(subscription: Subscription): Either[Throwable, Subscription] =
     for {
-      _ <- test(subscription, _.ratePlans.length == 2)("Wrong number of plans")
-      _ <- test(
-        subscription,
-        _.ratePlans
-          .find(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6))
-          .exists(_.lastChangeType.isEmpty)
-      )("No original 6 for 6 plan")
+      _ <- test(subscription, _.ratePlans.length == 1)("Wrong number of plans")
       _ <- test(
         subscription,
         _.ratePlans
@@ -142,7 +131,7 @@ object Subscription {
       _ <- test(
         subscription,
         _.ratePlans
-          .find(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6))
+          .find(_.ratePlanName.startsWith(productRatePlanNamePrefixMain))
           .exists(_.ratePlanCharges.headOption.exists { charge =>
             charge.effectiveStartDate == Config.keyDate
           })

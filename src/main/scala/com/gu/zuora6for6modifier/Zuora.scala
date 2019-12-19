@@ -161,19 +161,11 @@ trait ZuoraLive extends Zuora {
          |{
          |  "add": [
          |    {
-         |      "contractEffectiveDate": "${Config.keyDatePlusWeek}",
-         |      "productRatePlanId": "${subData.productPlanId6For6}"
-         |    },
-         |    {
-         |      "contractEffectiveDate": "${Config.keyDatePlus7Weeks}",
-         |      "productRatePlanId": "${subData.productPlanIdMain}"
+         |      "productRatePlanId": "${subData.productPlanIdMain}",
+         |      "contractEffectiveDate": "${Config.keyDatePlusWeek}"
          |    }
          |  ],
          |  "remove": [
-         |    {
-         |      "ratePlanId": "${subData.planId6For6}",
-         |      "contractEffectiveDate": "${Config.keyDate}"
-         |    },
          |    {
          |      "ratePlanId": "${subData.planIdMain}",
          |      "contractEffectiveDate": "${Config.keyDate}"
