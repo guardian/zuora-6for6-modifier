@@ -30,22 +30,23 @@ object Subscription {
   def extractDataForExtending(
       subscriptionName: String,
       json: String
-  ): Either[String, SubscriptionData] = {
+  ): Either[Throwable, SubscriptionData] = {
     /*
      * Ideally the plan would be extended to 7 weeks, but because of an apparent bug
      * in the Zuora API we extend to 2 months.  Happy Christmas subs!
      */
     def plus2Months(s: String): String = LocalDate.parse(s).plusMonths(2).toString
     for {
-      sub <- decode[Subscription](json).left.map(_.getMessage)
+      sub <- decode[Subscription](json)
       valid <- validForExtending(sub)
       plan6For6 <- valid.ratePlans
         .find(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6))
-        .toRight("Can't find 6 for 6 plan")
-      charge6For6 <- plan6For6.ratePlanCharges.headOption.toRight("Can't find 6 for 6 charge")
+        .toRight(new RuntimeException("Can't find 6 for 6 plan"))
+      charge6For6 <- plan6For6.ratePlanCharges.headOption
+        .toRight(new RuntimeException("Can't find 6 for 6 charge"))
       planMain <- valid.ratePlans
         .find(_.ratePlanName.startsWith(productRatePlanNamePrefixMain))
-        .toRight("Can't find main plan")
+        .toRight(new RuntimeException("Can't find main plan"))
     } yield SubscriptionData(
       subscriptionName,
       productPlanId6For6 = plan6For6.productRatePlanId,
@@ -58,28 +59,33 @@ object Subscription {
     )
   }
 
-  private def validForExtending(subscription: Subscription): Either[String, Subscription] = {
-    def test(p: Subscription => Boolean)(msg: String) =
-      if (p(subscription)) Right(subscription) else Left(msg)
+  private def test(sub: Subscription, p: Subscription => Boolean)(msg: String) =
+    if (p(sub)) Right(sub) else Left(new RuntimeException(msg))
 
+  private def validForExtending(subscription: Subscription): Either[Throwable, Subscription] =
     for {
       _ <- test(
+        subscription,
         _.ratePlans.count(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6)) == 1
       )("Has multiple 6 for 6 plans")
       _ <- test(
+        subscription,
         _.ratePlans.count(_.ratePlanName.startsWith(productRatePlanNamePrefixMain)) == 1
       )("Has multiple main plans")
       _ <- test(
+        subscription,
         _.ratePlans
           .find(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6))
           .exists(_.lastChangeType.isEmpty)
       )("No original 6 for 6 plan")
       _ <- test(
+        subscription,
         _.ratePlans
           .find(_.ratePlanName.startsWith(productRatePlanNamePrefixMain))
           .exists(_.lastChangeType.isEmpty)
       )("No original main plan")
       _ <- test(
+        subscription,
         _.ratePlans
           .find(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6))
           .exists(_.ratePlanCharges.headOption.exists { charge =>
@@ -87,21 +93,25 @@ object Subscription {
           })
       )("Doesn't include key date")
     } yield subscription
-  }
 
-  def extractDataForPostponing(subName: String, json: String): Either[String, SubscriptionData] = {
+  def extractDataForPostponing(
+      subName: String,
+      json: String
+  ): Either[Throwable, SubscriptionData] = {
     def plusWeek(s: String): String = LocalDate.parse(s).plusWeeks(1).toString
     for {
-      sub <- decode[Subscription](json).left.map(_.getMessage)
+      sub <- decode[Subscription](json)
       valid <- validForPostponing(sub)
       plan6For6 <- valid.ratePlans
         .find(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6))
-        .toRight("Can't find 6 for 6 plan")
-      charge6For6 <- plan6For6.ratePlanCharges.headOption.toRight("Can't find 6 for 6 charge")
+        .toRight(new RuntimeException("Can't find 6 for 6 plan"))
+      charge6For6 <- plan6For6.ratePlanCharges.headOption
+        .toRight(new RuntimeException("Can't find 6 for 6 charge"))
       planMain <- valid.ratePlans
         .find(_.ratePlanName.startsWith(productRatePlanNamePrefixMain))
-        .toRight("Can't find main plan")
-      chargeMain <- planMain.ratePlanCharges.headOption.toRight("Can't find 6 for 6 charge")
+        .toRight(new RuntimeException("Can't find main plan"))
+      chargeMain <- planMain.ratePlanCharges.headOption
+        .toRight(new RuntimeException("Can't find 6 for 6 charge"))
     } yield SubscriptionData(
       subName,
       productPlanId6For6 = plan6For6.productRatePlanId,
@@ -114,23 +124,23 @@ object Subscription {
     )
   }
 
-  private def validForPostponing(subscription: Subscription): Either[String, Subscription] = {
-    def test(p: Subscription => Boolean)(msg: String) =
-      if (p(subscription)) Right(subscription) else Left(msg)
-
+  private def validForPostponing(subscription: Subscription): Either[Throwable, Subscription] =
     for {
-      _ <- test(_.ratePlans.length == 2)("Wrong number of plans")
+      _ <- test(subscription, _.ratePlans.length == 2)("Wrong number of plans")
       _ <- test(
+        subscription,
         _.ratePlans
           .find(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6))
           .exists(_.lastChangeType.isEmpty)
       )("No original 6 for 6 plan")
       _ <- test(
+        subscription,
         _.ratePlans
           .find(_.ratePlanName.startsWith(productRatePlanNamePrefixMain))
           .exists(_.lastChangeType.isEmpty)
       )("No original main plan")
       _ <- test(
+        subscription,
         _.ratePlans
           .find(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6))
           .exists(_.ratePlanCharges.headOption.exists { charge =>
@@ -138,5 +148,4 @@ object Subscription {
           })
       )("Doesn't include key date")
     } yield subscription
-  }
 }

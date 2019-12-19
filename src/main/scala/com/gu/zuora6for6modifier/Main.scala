@@ -2,7 +2,6 @@ package com.gu.zuora6for6modifier
 
 import java.io.File
 
-import com.gu.zuora6for6modifier.PutRequests.{extendTo2Months, startWeekLater}
 import com.gu.zuora6for6modifier.Subscription.{extractDataForExtending, extractDataForPostponing}
 import zio.console.{Console, putStrLn}
 import zio.{App, ZEnv, ZIO}
@@ -21,40 +20,65 @@ object Main extends App {
   def extractData(
       subscriptionName: String,
       subscription: String,
-      extractFrom: (String, String) => Either[String, SubscriptionData]
-  ): ZIO[Any, String, SubscriptionData] =
+      extractFrom: (String, String) => Either[Throwable, SubscriptionData]
+  ): ZIO[Any, Throwable, SubscriptionData] =
     ZIO.fromEither(extractFrom(subscriptionName, subscription))
 
-  def processSubscription(
+  private def processSubscription(
       accessToken: String,
       subscriptionName: String,
-      extractSubscriptionData: (String, String) => Either[String, SubscriptionData],
-      putRequestBody: SubscriptionData => String
+      dataRequired: (String, String) => Either[Throwable, SubscriptionData],
+      process: (String, SubscriptionData) => ZIO[Zuora, Throwable, Unit]
   ): ZIO[Zuora with Console, Nothing, Unit] =
     Zuora.>.getSubscription(accessToken, subscriptionName)
       .flatMap { sub =>
-        extractData(subscriptionName, sub, extractSubscriptionData).mapError(
-          e => new RuntimeException(e)
-        )
+        extractData(subscriptionName, sub, dataRequired)
       }
       .flatMap { subData =>
-        Zuora.>.putSubscription(accessToken, subData, putRequestBody)
+        process(accessToken, subData)
       }
       .foldM(
         e => putStrLn(s"$subscriptionName\t\tFAIL\t\t${e.getMessage}"),
         _ => putStrLn(s"$subscriptionName\t\tSUCCESS")
       )
 
-  def processSubs(
-      src: File,
-      putRequestBody: SubscriptionData => String,
-      extractSubData: (String, String) => Either[String, SubscriptionData]
-  ): ZIO[Zuora with Console, Throwable, Unit] =
+  def extendSubscription(
+      accessToken: String,
+      subscriptionName: String
+  ): ZIO[Zuora with Console, Nothing, Unit] =
+    processSubscription(
+      accessToken,
+      subscriptionName,
+      extractDataForExtending,
+      Zuora.>.extendSubscription
+    )
+
+  def postponeSubscription(
+      accessToken: String,
+      subscriptionName: String
+  ): ZIO[Zuora with Console, Nothing, Unit] =
+    processSubscription(
+      accessToken,
+      subscriptionName,
+      extractDataForPostponing,
+      Zuora.>.postponeSubscription
+    )
+
+  val extendSubscriptions: ZIO[Zuora with Console, Throwable, Unit] =
     for {
-      subNames <- subscriptionNames(src)
+      subNames <- subscriptionNames(new File("extend.in.txt"))
       accessToken <- Zuora.>.token
       _ <- ZIO.foreach(subNames) { subName =>
-        processSubscription(accessToken, subName, extractSubData, putRequestBody)
+        extendSubscription(accessToken, subName)
+      }
+    } yield ()
+
+  val postponeSubscriptions: ZIO[Zuora with Console, Throwable, Unit] =
+    for {
+      subNames <- subscriptionNames(new File("postpone.in.txt"))
+      accessToken <- Zuora.>.token
+      _ <- ZIO.foreach(subNames) { subName =>
+        postponeSubscription(accessToken, subName)
       }
     } yield ()
 
@@ -72,12 +96,9 @@ object Main extends App {
   def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
     val action = args.headOption
     val process = action match {
-      case Some("extend") =>
-        processSubs(new File("extend.in.txt"), extendTo2Months, extractDataForExtending)
-      case Some("postpone") =>
-        processSubs(new File("postpone.in.txt"), startWeekLater, extractDataForPostponing)
-      case _ =>
-        ZIO.dieMessage("No identifying action or source file given")
+      case Some("extend")   => extendSubscriptions
+      case Some("postpone") => postponeSubscriptions
+      case _                => ZIO.dieMessage("No identifying action given")
     }
     process
       .provide(new ZuoraLive with Console.Live)

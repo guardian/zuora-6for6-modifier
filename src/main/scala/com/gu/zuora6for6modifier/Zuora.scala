@@ -15,11 +15,14 @@ object Zuora {
   trait Service[R] {
     val token: ZIO[R, Throwable, String]
     def getSubscription(accessToken: String, subName: String): ZIO[R, Throwable, String]
-    def putSubscription(
+    def extendSubscription(
         accessToken: String,
-        subData: SubscriptionData,
-        body: SubscriptionData => String
-    ): ZIO[R, Throwable, String]
+        subData: SubscriptionData
+    ): ZIO[R, Throwable, Unit]
+    def postponeSubscription(
+        accessToken: String,
+        subData: SubscriptionData
+    ): ZIO[R, Throwable, Unit]
   }
 
   object > extends Zuora.Service[Zuora] {
@@ -29,12 +32,17 @@ object Zuora {
     def getSubscription(accessToken: String, subName: String): ZIO[Zuora, Throwable, String] =
       ZIO.accessM(_.zuora.getSubscription(accessToken, subName))
 
-    def putSubscription(
+    def extendSubscription(
         accessToken: String,
-        subData: SubscriptionData,
-        body: SubscriptionData => String
-    ): ZIO[Zuora, Throwable, String] =
-      ZIO.accessM(_.zuora.putSubscription(accessToken, subData, body))
+        subData: SubscriptionData
+    ): ZIO[Zuora, Throwable, Unit] =
+      ZIO.accessM(_.zuora.extendSubscription(accessToken, subData))
+
+    def postponeSubscription(
+        accessToken: String,
+        subData: SubscriptionData
+    ): ZIO[Zuora, Throwable, Unit] =
+      ZIO.accessM(_.zuora.postponeSubscription(accessToken, subData))
   }
 }
 
@@ -76,11 +84,11 @@ trait ZuoraLive extends Zuora {
       }
     }
 
-    def putSubscription(
+    private def putSubscription(
         accessToken: String,
         subData: SubscriptionData,
         body: SubscriptionData => String
-    ): ZIO[Any, Throwable, String] = {
+    ): ZIO[Any, Throwable, Unit] = {
       val response =
         HttpWithLongTimeout(s"$host/v1/subscriptions/${subData.subscriptionName}")
           .header("Authorization", s"Bearer $accessToken")
@@ -93,52 +101,63 @@ trait ZuoraLive extends Zuora {
           decode[PutResponse](response.body).map(_.success) match {
             case Left(e)      => ZIO.fail(e)
             case Right(false) => ZIO.fail(new RuntimeException(response.body))
-            case Right(true)  => ZIO.succeed(response.body)
+            case Right(true)  => ZIO.succeed(())
           }
         case _ =>
           throw new RuntimeException(response.body)
       }
     }
+
+    def extendSubscription(
+        accessToken: String,
+        subscriptionData: SubscriptionData
+    ): ZIO[Any, Throwable, Unit] =
+      putSubscription(accessToken, subscriptionData, PutRequests.extendTo2Months)
+
+    def postponeSubscription(
+        accessToken: String,
+        subscriptionData: SubscriptionData
+    ): ZIO[Any, Throwable, Unit] =
+      putSubscription(accessToken, subscriptionData, PutRequests.startWeekLater)
   }
-}
 
-object PutRequests {
+  object PutRequests {
 
-  def extendTo2Months(subData: SubscriptionData): String =
-    s"""
-       |{
-       |  "add": [
-       |    {
-       |      "contractEffectiveDate": "${subData.start6For6Date}",
-       |      "productRatePlanId": "${subData.productPlanId6For6}",
-       |      "chargeOverrides": [
-       |        {
-       |          "productRatePlanChargeId": "${subData.productChargeId6For6}",
-       |          "billingPeriod": "Specific_Months",
-       |          "specificBillingPeriod": 2
-       |        }
-       |      ]
-       |    },
-       |    {
-       |      "contractEffectiveDate": "${subData.startMainDate}",
-       |      "productRatePlanId": "${subData.productPlanIdMain}"
-       |    }
-       |  ],
-       |  "remove": [
-       |    {
-       |      "ratePlanId": "${subData.planId6For6}",
-       |      "contractEffectiveDate": "${subData.start6For6Date}"
-       |    },
-       |    {
-       |      "ratePlanId": "${subData.planIdMain}",
-       |      "contractEffectiveDate": "${subData.start6For6Date}"
-       |    }
-       |  ]
-       |}
-       |""".stripMargin
+    def extendTo2Months(subData: SubscriptionData): String =
+      s"""
+         |{
+         |  "add": [
+         |    {
+         |      "contractEffectiveDate": "${subData.start6For6Date}",
+         |      "productRatePlanId": "${subData.productPlanId6For6}",
+         |      "chargeOverrides": [
+         |        {
+         |          "productRatePlanChargeId": "${subData.productChargeId6For6}",
+         |          "billingPeriod": "Specific_Months",
+         |          "specificBillingPeriod": 2
+         |        }
+         |      ]
+         |    },
+         |    {
+         |      "contractEffectiveDate": "${subData.startMainDate}",
+         |      "productRatePlanId": "${subData.productPlanIdMain}"
+         |    }
+         |  ],
+         |  "remove": [
+         |    {
+         |      "ratePlanId": "${subData.planId6For6}",
+         |      "contractEffectiveDate": "${subData.start6For6Date}"
+         |    },
+         |    {
+         |      "ratePlanId": "${subData.planIdMain}",
+         |      "contractEffectiveDate": "${subData.start6For6Date}"
+         |    }
+         |  ]
+         |}
+         |""".stripMargin
 
-  def startWeekLater(subData: SubscriptionData): String =
-    s"""
+    def startWeekLater(subData: SubscriptionData): String =
+      s"""
          |{
          |  "add": [
          |    {
@@ -162,6 +181,7 @@ object PutRequests {
          |  ]
          |}
          |""".stripMargin
+  }
 }
 
 object ZuoraHostSelector {
