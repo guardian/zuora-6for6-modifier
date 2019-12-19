@@ -25,61 +25,34 @@ object Main extends App {
     ZIO.fromEither(extractFrom(subscriptionName, subscription))
 
   private def processSubscription(
-      accessToken: String,
       subscriptionName: String,
       dataRequired: (String, String) => Either[Throwable, SubscriptionData],
-      process: (String, SubscriptionData) => ZIO[Zuora, Throwable, Unit]
+      process: SubscriptionData => ZIO[Zuora, Throwable, Unit]
   ): ZIO[Zuora with Console, Nothing, Unit] =
-    Zuora.>.getSubscription(accessToken, subscriptionName)
-      .flatMap { sub =>
-        extractData(subscriptionName, sub, dataRequired)
-      }
-      .flatMap { subData =>
-        process(accessToken, subData)
-      }
+    Zuora.>.getSubscription(subscriptionName)
+      .flatMap(sub => extractData(subscriptionName, sub, dataRequired))
+      .flatMap(subData => process(subData))
       .foldM(
         e => putStrLn(s"$subscriptionName\t\tFAIL\t\t${e.getMessage}"),
         _ => putStrLn(s"$subscriptionName\t\tSUCCESS")
       )
 
-  def extendSubscription(
-      accessToken: String,
-      subscriptionName: String
-  ): ZIO[Zuora with Console, Nothing, Unit] =
-    processSubscription(
-      accessToken,
-      subscriptionName,
-      extractDataForExtending,
-      Zuora.>.extendSubscription
-    )
+  def extendSubscription(subscriptionName: String): ZIO[Zuora with Console, Nothing, Unit] =
+    processSubscription(subscriptionName, extractDataForExtending, Zuora.>.extendSubscription)
 
-  def postponeSubscription(
-      accessToken: String,
-      subscriptionName: String
-  ): ZIO[Zuora with Console, Nothing, Unit] =
-    processSubscription(
-      accessToken,
-      subscriptionName,
-      extractDataForPostponing,
-      Zuora.>.postponeSubscription
-    )
+  def postponeSubscription(subscriptionName: String): ZIO[Zuora with Console, Nothing, Unit] =
+    processSubscription(subscriptionName, extractDataForPostponing, Zuora.>.postponeSubscription)
 
   val extendSubscriptions: ZIO[Zuora with Console, Throwable, Unit] =
     for {
       subNames <- subscriptionNames(new File("extend.in.txt"))
-      accessToken <- Zuora.>.token
-      _ <- ZIO.foreach(subNames) { subName =>
-        extendSubscription(accessToken, subName)
-      }
+      _ <- ZIO.foreach(subNames)(extendSubscription)
     } yield ()
 
   val postponeSubscriptions: ZIO[Zuora with Console, Throwable, Unit] =
     for {
       subNames <- subscriptionNames(new File("postpone.in.txt"))
-      accessToken <- Zuora.>.token
-      _ <- ZIO.foreach(subNames) { subName =>
-        postponeSubscription(accessToken, subName)
-      }
+      _ <- ZIO.foreach(subNames)(postponeSubscription)
     } yield ()
 
   /**

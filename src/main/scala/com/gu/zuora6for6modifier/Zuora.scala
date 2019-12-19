@@ -13,36 +13,21 @@ trait Zuora {
 object Zuora {
 
   trait Service[R] {
-    val token: ZIO[R, Throwable, String]
-    def getSubscription(accessToken: String, subName: String): ZIO[R, Throwable, String]
-    def extendSubscription(
-        accessToken: String,
-        subData: SubscriptionData
-    ): ZIO[R, Throwable, Unit]
-    def postponeSubscription(
-        accessToken: String,
-        subData: SubscriptionData
-    ): ZIO[R, Throwable, Unit]
+    def getSubscription(subName: String): ZIO[R, Throwable, String]
+    def extendSubscription(subData: SubscriptionData): ZIO[R, Throwable, Unit]
+    def postponeSubscription(subData: SubscriptionData): ZIO[R, Throwable, Unit]
   }
 
   object > extends Zuora.Service[Zuora] {
 
-    val token: ZIO[Zuora, Throwable, String] = ZIO.accessM(_.zuora.token)
+    def getSubscription(subName: String): ZIO[Zuora, Throwable, String] =
+      ZIO.accessM(_.zuora.getSubscription(subName))
 
-    def getSubscription(accessToken: String, subName: String): ZIO[Zuora, Throwable, String] =
-      ZIO.accessM(_.zuora.getSubscription(accessToken, subName))
+    def extendSubscription(subData: SubscriptionData): ZIO[Zuora, Throwable, Unit] =
+      ZIO.accessM(_.zuora.extendSubscription(subData))
 
-    def extendSubscription(
-        accessToken: String,
-        subData: SubscriptionData
-    ): ZIO[Zuora, Throwable, Unit] =
-      ZIO.accessM(_.zuora.extendSubscription(accessToken, subData))
-
-    def postponeSubscription(
-        accessToken: String,
-        subData: SubscriptionData
-    ): ZIO[Zuora, Throwable, Unit] =
-      ZIO.accessM(_.zuora.postponeSubscription(accessToken, subData))
+    def postponeSubscription(subData: SubscriptionData): ZIO[Zuora, Throwable, Unit] =
+      ZIO.accessM(_.zuora.postponeSubscription(subData))
   }
 }
 
@@ -50,12 +35,14 @@ trait ZuoraLive extends Zuora {
 
   val zuora: Zuora.Service[Any] = new Zuora.Service[Any] {
 
-    val token: ZIO[Any, Throwable, String] = {
-      val response = Http(s"$host/oauth/token")
+    private lazy val token: ZIO[Any, Throwable, String] = {
+      case class AccessToken(access_token: String)
+      val url = s"$host/oauth/token"
+      val response = Http(url)
         .postForm(
           Seq(
-            "client_id" -> Config.Zuora.client_id,
-            "client_secret" -> Config.Zuora.client_secret,
+            "client_id" -> Config.Zuora.clientId,
+            "client_secret" -> Config.Zuora.clientSecret,
             "grant_type" -> "client_credentials"
           )
         )
@@ -63,62 +50,52 @@ trait ZuoraLive extends Zuora {
       response.code match {
         case 200 =>
           decode[AccessToken](response.body) match {
-            case Left(e)  => ZIO.fail(e)
-            case Right(t) => ZIO.succeed(t.access_token)
+            case Left(e)      => ZIO.fail(e)
+            case Right(token) => ZIO.succeed(token.access_token)
           }
         case _ => ZIO.fail(new RuntimeException(s"Failed to authenticate with Zuora: $response"))
       }
     }
 
-    def getSubscription(
-        accessToken: String,
-        subName: String
-    ): ZIO[Any, Throwable, String] = {
-      val response = HttpWithLongTimeout(s"$host/v1/subscriptions/$subName")
-        .header("Authorization", s"Bearer $accessToken")
-        .method("GET")
-        .asString
-      response.code match {
-        case 200 => ZIO.succeed(response.body)
-        case _   => ZIO.fail(new RuntimeException(s"Failed to look up $subName: $response"))
-      }
-    }
+    def getSubscription(subName: String): ZIO[Any, Throwable, String] =
+      for {
+        accessToken <- token
+        response = HttpWithLongTimeout(s"$host/v1/subscriptions/$subName")
+          .header("Authorization", s"Bearer $accessToken")
+          .method("GET")
+          .asString
+        responseBody <- response.code match {
+          case 200 => ZIO.succeed(response.body)
+          case _   => ZIO.fail(new RuntimeException(s"Failed to look up $subName: $response"))
+        }
+      } yield responseBody
 
-    private def putSubscription(
-        accessToken: String,
-        subData: SubscriptionData,
-        body: SubscriptionData => String
-    ): ZIO[Any, Throwable, Unit] = {
-      val response =
-        HttpWithLongTimeout(s"$host/v1/subscriptions/${subData.subscriptionName}")
+    private def putSubscription(subData: SubscriptionData, body: SubscriptionData => String): ZIO[Any, Throwable, Unit] =
+      for {
+        accessToken <- token
+        response = HttpWithLongTimeout(s"$host/v1/subscriptions/${subData.subscriptionName}")
           .header("Authorization", s"Bearer $accessToken")
           .header("Content-type", "application/json")
           .put(body(subData))
           .method("PUT")
           .asString
-      response.code match {
-        case 200 =>
-          decode[PutResponse](response.body).map(_.success) match {
-            case Left(e)      => ZIO.fail(e)
-            case Right(false) => ZIO.fail(new RuntimeException(response.body))
-            case Right(true)  => ZIO.succeed(())
-          }
-        case _ =>
-          throw new RuntimeException(response.body)
-      }
-    }
+        _ <- response.code match {
+          case 200 =>
+            decode[PutResponse](response.body).map(_.success) match {
+              case Left(e)      => ZIO.fail(e)
+              case Right(false) => ZIO.fail(new RuntimeException(response.body))
+              case Right(true)  => ZIO.succeed(())
+            }
+          case _ =>
+            ZIO.fail(new RuntimeException(response.body))
+        }
+      } yield ()
 
-    def extendSubscription(
-        accessToken: String,
-        subscriptionData: SubscriptionData
-    ): ZIO[Any, Throwable, Unit] =
-      putSubscription(accessToken, subscriptionData, PutRequests.extendTo2Months)
+    def extendSubscription(subscriptionData: SubscriptionData): ZIO[Any, Throwable, Unit] =
+      putSubscription(subscriptionData, PutRequests.extendTo2Months)
 
-    def postponeSubscription(
-        accessToken: String,
-        subscriptionData: SubscriptionData
-    ): ZIO[Any, Throwable, Unit] =
-      putSubscription(accessToken, subscriptionData, PutRequests.startWeekLater)
+    def postponeSubscription(subscriptionData: SubscriptionData): ZIO[Any, Throwable, Unit] =
+      putSubscription(subscriptionData, PutRequests.startWeekLater)
   }
 
   object PutRequests {
@@ -161,12 +138,12 @@ trait ZuoraLive extends Zuora {
          |{
          |  "add": [
          |    {
-         |      "contractEffectiveDate": "${Config.keyDatePlusWeek}",
-         |      "productRatePlanId": "${subData.productPlanId6For6}"
+         |      "productRatePlanId": "${subData.productPlanId6For6}",
+         |      "contractEffectiveDate": "${Config.keyDatePlusWeek}"
          |    },
          |    {
-         |      "contractEffectiveDate": "${Config.keyDatePlus7Weeks}",
-         |      "productRatePlanId": "${subData.productPlanIdMain}"
+         |      "productRatePlanId": "${subData.productPlanIdMain}",
+         |      "contractEffectiveDate": "${Config.keyDatePlus7Weeks}"
          |    }
          |  ],
          |  "remove": [
