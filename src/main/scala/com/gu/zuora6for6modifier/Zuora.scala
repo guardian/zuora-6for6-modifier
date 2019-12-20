@@ -1,41 +1,55 @@
 package com.gu.zuora6for6modifier
 
-import com.gu.zuora6for6modifier.ZuoraHostSelector.host
 import io.circe.generic.auto._
 import io.circe.parser.decode
 import scalaj.http.{BaseHttp, Http, HttpOptions}
-import zio.ZIO
+import zio.{RIO, Task, ZIO}
 
 trait Zuora {
-  val zuora: Zuora.Service[Any]
+  val zuora: Zuora.Service
 }
 
 object Zuora {
 
-  trait Service[R] {
-    def getSubscription(subName: String): ZIO[R, Throwable, String]
-    def extendSubscription(subData: SubscriptionData): ZIO[R, Throwable, Unit]
-    def postponeSubscription(subData: SubscriptionData): ZIO[R, Throwable, Unit]
+  trait Service {
+    def getSubscription(subName: String): Task[String]
+    def extendSubscription(subData: SubscriptionData): Task[Unit]
+    def postponeSubscription(subData: SubscriptionData): Task[Unit]
   }
 
-  object > extends Zuora.Service[Zuora] {
+  object > {
 
-    def getSubscription(subName: String): ZIO[Zuora, Throwable, String] =
+    def getSubscription(subName: String): RIO[Zuora, String] =
       ZIO.accessM(_.zuora.getSubscription(subName))
 
-    def extendSubscription(subData: SubscriptionData): ZIO[Zuora, Throwable, Unit] =
+    def extendSubscription(subData: SubscriptionData): RIO[Zuora, Unit] =
       ZIO.accessM(_.zuora.extendSubscription(subData))
 
-    def postponeSubscription(subData: SubscriptionData): ZIO[Zuora, Throwable, Unit] =
+    def postponeSubscription(subData: SubscriptionData): RIO[Zuora, Unit] =
       ZIO.accessM(_.zuora.postponeSubscription(subData))
   }
 }
 
 trait ZuoraLive extends Zuora {
 
-  val zuora: Zuora.Service[Any] = new Zuora.Service[Any] {
+  val zuora: Zuora.Service = new Zuora.Service {
 
-    private lazy val token: ZIO[Any, Throwable, String] = {
+    private val host: String =
+      Config.Zuora.stage match {
+        case "DEV" | "UAT" => "https://rest.apisandbox.zuora.com"
+        case "PROD"        => "https://rest.zuora.com"
+      }
+
+    private object HttpWithLongTimeout
+        extends BaseHttp(
+          options = Seq(
+            HttpOptions.connTimeout(5000),
+            HttpOptions.readTimeout(30000),
+            HttpOptions.followRedirects(false)
+          )
+        )
+
+    private lazy val token: Task[String] = {
       case class AccessToken(access_token: String)
       val url = s"$host/oauth/token"
       val response = Http(url)
@@ -57,7 +71,7 @@ trait ZuoraLive extends Zuora {
       }
     }
 
-    def getSubscription(subName: String): ZIO[Any, Throwable, String] =
+    def getSubscription(subName: String): Task[String] =
       for {
         accessToken <- token
         response = HttpWithLongTimeout(s"$host/v1/subscriptions/$subName")
@@ -70,7 +84,11 @@ trait ZuoraLive extends Zuora {
         }
       } yield responseBody
 
-    private def putSubscription(subData: SubscriptionData, body: SubscriptionData => String): ZIO[Any, Throwable, Unit] =
+    private def putSubscription(
+        subData: SubscriptionData,
+        body: SubscriptionData => String
+    ): Task[Unit] = {
+      case class PutResponse(success: Boolean)
       for {
         accessToken <- token
         response = HttpWithLongTimeout(s"$host/v1/subscriptions/${subData.subscriptionName}")
@@ -90,11 +108,12 @@ trait ZuoraLive extends Zuora {
             ZIO.fail(new RuntimeException(response.body))
         }
       } yield ()
+    }
 
-    def extendSubscription(subscriptionData: SubscriptionData): ZIO[Any, Throwable, Unit] =
+    def extendSubscription(subscriptionData: SubscriptionData): Task[Unit] =
       putSubscription(subscriptionData, PutRequests.extendTo2Months)
 
-    def postponeSubscription(subscriptionData: SubscriptionData): ZIO[Any, Throwable, Unit] =
+    def postponeSubscription(subscriptionData: SubscriptionData): Task[Unit] =
       putSubscription(subscriptionData, PutRequests.startWeekLater)
   }
 
@@ -160,22 +179,5 @@ trait ZuoraLive extends Zuora {
          |""".stripMargin
   }
 }
-
-object ZuoraHostSelector {
-  val host: String =
-    Config.Zuora.stage match {
-      case "DEV" | "UAT" => "https://rest.apisandbox.zuora.com"
-      case "PROD"        => "https://rest.zuora.com"
-    }
-}
-
-object HttpWithLongTimeout
-    extends BaseHttp(
-      options = Seq(
-        HttpOptions.connTimeout(5000),
-        HttpOptions.readTimeout(30000),
-        HttpOptions.followRedirects(false)
-      )
-    )
 
 object ZuoraLive extends ZuoraLive
