@@ -9,9 +9,10 @@ import zio.{RIO, URIO, ZIO}
 object Postponer {
 
   def postponeSubscription(subscriptionName: String): URIO[Zuora with Console, Unit] =
-    Zuora.>.getSubscription(subscriptionName)
+    Zuora
+      .getSubscription(subscriptionName)
       .flatMap(sub => ZIO.fromEither(extractDataForPostponing(subscriptionName, sub)))
-      .flatMap(subData => Zuora.>.postponeSubscription(subData))
+      .flatMap(subData => Zuora.postponeSubscription(subData))
       .foldM(
         e => putStrLn(s"$subscriptionName\t\tFAIL\t\t${e.getMessage}"),
         _ => putStrLn(s"$subscriptionName\t\tSUCCESS")
@@ -20,6 +21,6 @@ object Postponer {
   val postponeSubscriptions: RIO[Zuora with Console, Unit] =
     for {
       subNames <- FileHandler.subscriptionNames(new File("postpone.in.txt"))
-      _ <- ZIO.foreach(subNames)(postponeSubscription)
+      _ <- ZIO.foreach_(subNames)(postponeSubscription)
     } yield ()
 }

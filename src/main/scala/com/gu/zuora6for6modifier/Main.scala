@@ -1,7 +1,6 @@
 package com.gu.zuora6for6modifier
 
-import zio.console.{Console, putStrLn}
-import zio.{App, ZEnv, ZIO}
+import zio.{App, ExitCode, URIO, ZEnv, ZIO}
 
 object Main extends App {
 
@@ -15,7 +14,7 @@ object Main extends App {
     *              In both cases the start of the subsequent quarterly plan is postponed
     *              until the new end of the introductory plan.
     */
-  def run(args: List[String]): ZIO[ZEnv, Nothing, Int] = {
+  def run(args: List[String]): URIO[ZEnv, ExitCode] = {
     val action = args.headOption
     val process = action match {
       case Some("extend")   => Extender.extendSubscriptions
@@ -23,10 +22,7 @@ object Main extends App {
       case _                => ZIO.dieMessage("No identifying action given")
     }
     process
-      .provide(new ZuoraLive with Console.Live)
-      .foldM(
-        e => putStrLn(e.getMessage).map(_ => 1),
-        _ => ZIO.succeed(0)
-      )
+      .provideCustomLayer(ZuoraLive.impl)
+      .exitCode
   }
 }
