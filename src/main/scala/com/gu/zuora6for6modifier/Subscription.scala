@@ -31,11 +31,9 @@ object Subscription {
       subscriptionName: String,
       json: String
   ): Either[Throwable, SubscriptionData] = {
-    /*
-     * Ideally the plan would be extended to 7 weeks, but because of an apparent bug
-     * in the Zuora API we extend to 2 months.  Happy Christmas subs!
-     */
-    def plus2Months(s: String): String = LocalDate.parse(s).plusMonths(2).toString
+
+    def plus7Weeks(s: String): String = LocalDate.parse(s).plusWeeks(7).toString
+
     for {
       sub <- decode[Subscription](json)
       valid <- validForExtending(sub)
@@ -53,7 +51,7 @@ object Subscription {
       productChargeId6For6 = charge6For6.productRatePlanChargeId,
       productPlanIdMain = planMain.productRatePlanId,
       start6For6Date = charge6For6.effectiveStartDate,
-      startMainDate = plus2Months(charge6For6.effectiveStartDate),
+      startMainDate = plus7Weeks(charge6For6.effectiveStartDate),
       planId6For6 = plan6For6.id,
       planIdMain = planMain.id
     )
@@ -67,7 +65,7 @@ object Subscription {
       _ <- test(
         subscription,
         _.ratePlans.count(_.ratePlanName.startsWith(productRatePlanNamePrefix6For6)) == 1
-      )("Has multiple 6 for 6 plans")
+      )("Doesn't have precisely one 6 for 6 plan")
       _ <- test(
         subscription,
         _.ratePlans.count(_.ratePlanName.startsWith(productRatePlanNamePrefixMain)) == 1

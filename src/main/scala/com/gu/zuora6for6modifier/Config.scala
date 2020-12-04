@@ -7,7 +7,7 @@ import com.typesafe.config.ConfigFactory
 object Config {
   private lazy val conf = ConfigFactory.load
 
-  val keyDate = "2019-12-27"
+  val keyDate = "2020-12-25"
   val keyDatePlusWeek = LocalDate.parse(keyDate).plusWeeks(1).toString
   val keyDatePlus7Weeks = LocalDate.parse(keyDate).plusWeeks(7).toString
 
