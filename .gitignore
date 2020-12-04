@@ -1,4 +1,5 @@
 application.conf
 target
 .idea
+.bsp
 *.txt

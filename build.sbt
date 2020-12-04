@@ -1,15 +1,9 @@
-organization := "com.gu"
+scalaVersion := "2.13.4"
 
-name := "zuora-6for6-modifier"
-
-version := "0.1-SNAPSHOT"
-
-scalaVersion := "2.13.1"
-
-val circeVersion = "0.12.3"
+val circeVersion = "0.13.0"
 
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.4.0",
+  "com.typesafe" % "config" % "1.4.1",
   "dev.zio" %% "zio" % "1.0.0-RC17",
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
