@@ -86,7 +86,7 @@ object ZuoraLive {
           }
 
           def extendSubscription(data: SubscriptionData): Task[Unit] = {
-            putSubscription(data, PutRequests.extendTo2Months)
+            putSubscription(data, PutRequests.extendTo7Weeks)
           }
 
           def postponeSubscription(data: SubscriptionData): Task[Unit] =
@@ -100,7 +100,7 @@ object ZuoraLive {
 
   object PutRequests {
 
-    def extendTo2Months(data: SubscriptionData): String =
+    def extendTo7Weeks(data: SubscriptionData): String =
       s"""
          |{
          |  "add": [
@@ -110,8 +110,8 @@ object ZuoraLive {
          |      "chargeOverrides": [
          |        {
          |          "productRatePlanChargeId": "${data.productChargeId6For6}",
-         |          "billingPeriod": "Specific_Months",
-         |          "specificBillingPeriod": 2
+         |          "billingPeriod": "Specific_Weeks",
+         |          "specificBillingPeriod": 7
          |        }
          |      ]
          |    },

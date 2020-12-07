@@ -12,3 +12,16 @@ includes 6 published issues, as expected.
 As the length of a rate plan cannot be modified in place, the script adds new rate plans to the
 subscription with different start dates and lengths as appropriate.  Then the original introductory
 and quarterly rate plans are removed.
+
+## Configuration
+The project expects an `application.conf` file in `src/main/resources`. Git will ignore this file.
+It should contain these settings:
+```hocon
+zuora {
+  stage = ???
+  client_id = ???
+  client_secret = ???
+}
+```
+In the Prod stage there is a dedicated user configured, called `Christmas 6 for 6 extender`.
+Use your own credentials for the other stages.
