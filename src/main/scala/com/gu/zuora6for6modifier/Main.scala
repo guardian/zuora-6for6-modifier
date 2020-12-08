@@ -1,5 +1,6 @@
 package com.gu.zuora6for6modifier
 
+import zio.console.putStrLn
 import zio.{App, ExitCode, URIO, ZEnv, ZIO}
 
 object Main extends App {
@@ -23,6 +24,9 @@ object Main extends App {
     }
     process
       .provideCustomLayer(ZuoraLive.impl)
-      .exitCode
+      .foldM(
+        e => putStrLn(s"Failed: ${e.getMessage}").as(ExitCode.failure),
+        _ => ZIO.succeed(ExitCode.success)
+      )
   }
 }
