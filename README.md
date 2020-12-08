@@ -27,4 +27,4 @@ In the Prod stage there is a dedicated user configured, called `Christmas 6 for 
 Use your own credentials for the other stages.
 
 ## Queries
-The queries used to find relevant subscriptions are [here](queries).
+The queries used to find relevant subscriptions in the BigQuery data lake are [here](queries).
