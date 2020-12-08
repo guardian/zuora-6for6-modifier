@@ -12,7 +12,13 @@ class SubscriptionTest extends FunSuite {
     parse(json).map(_.spaces2).getOrElse(throw new RuntimeException(s"Can't decode:\n$json"))
   }
 
-  test("extractDataForExtending extracts correct data from valid Json") {
+  private def test(methodName: String)(testDescription: String)(body: => Any): Unit =
+    super.test(s"$methodName: $testDescription")(body)
+
+  private val testExtractDataForExtending = test("extractDataForExtending") _
+  private val testExtractDataForPostponing = test("extractDataForPostponing") _
+
+  testExtractDataForExtending("extracts correct data from valid subscription") {
     val data = Subscription.extractDataForExtending(
       subscriptionName = "subNum",
       json = toJsonString("ToExtend.json")
@@ -34,10 +40,40 @@ class SubscriptionTest extends FunSuite {
     )
   }
 
-  test("extractDataForExtending won't try to extend an already extended subscription") {
+  testExtractDataForExtending("won't try to extend an already extended subscription") {
     val data = Subscription.extractDataForExtending(
       subscriptionName = "subNum",
       json = toJsonString("AlreadyExtended.json")
+    )
+    assert(data.isLeft)
+  }
+
+  testExtractDataForPostponing("extracts correct data from valid subscription") {
+    val data = Subscription.extractDataForPostponing(
+      subscriptionName = "subNum",
+      json = toJsonString("FirstIssueInChristmasWeek.json")
+    )
+    assertEquals(
+      data,
+      Right(
+        SubscriptionData(
+          subscriptionName = "subNum",
+          productPlanId6For6 = "2c92a0086619bf8901661aaac94257fe",
+          productChargeId6For6 = "2c92a0086619bf8901661aaac95d5800",
+          productPlanIdMain = "2c92a0fe6619b4b301661aa494392ee2",
+          start6For6Date = "2021-01-01",
+          startMainDate = "2021-02-12",
+          planId6For6 = "id6for6",
+          planIdMain = "idMain"
+        )
+      )
+    )
+  }
+
+  testExtractDataForPostponing("won't try to push back an already postponed subscription") {
+    val data = Subscription.extractDataForPostponing(
+      subscriptionName = "subNum",
+      json = toJsonString("AlreadyPushedBack.json")
     )
     assert(data.isLeft)
   }
