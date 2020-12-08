@@ -93,7 +93,7 @@ object Subscription {
     } yield subscription
 
   def extractDataForPostponing(
-      subName: String,
+      subscriptionName: String,
       json: String
   ): Either[Throwable, SubscriptionData] = {
     def plusWeek(s: String): String = LocalDate.parse(s).plusWeeks(1).toString
@@ -111,7 +111,7 @@ object Subscription {
       chargeMain <- planMain.ratePlanCharges.headOption
         .toRight(new RuntimeException("Can't find 6 for 6 charge"))
     } yield SubscriptionData(
-      subName,
+      subscriptionName,
       productPlanId6For6 = plan6For6.productRatePlanId,
       productChargeId6For6 = charge6For6.productRatePlanChargeId,
       productPlanIdMain = planMain.productRatePlanId,
