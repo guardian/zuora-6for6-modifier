@@ -1,0 +1,9 @@
+{
+  "name": "FirstBillAfter6For6ToPushBack",
+  "queries": [
+    {
+      "type": "zoqlexport",
+      "query": "select Subscription.Name from RatePlanCharge where Product.Name like 'Guardian Weekly%' and Subscription.Status = 'Active' and EffectiveStartDate = '2020-12-25' and not Name like 'GW%6%'"
+    }
+  ]
+}
