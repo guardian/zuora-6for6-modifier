@@ -1,0 +1,9 @@
+{
+  "name": "6For6ToPushBack",
+  "queries": [
+    {
+      "type": "zoqlexport",
+      "query": "select Subscription.Name from RatePlanCharge where Subscription.Status = 'Active' and EffectiveStartDate = '2020-12-25' and Name like 'GW%6%'"
+    }
+  ]
+}
