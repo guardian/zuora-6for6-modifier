@@ -5,19 +5,24 @@ import zio.{RIO, Task}
 object Zuora {
 
   trait Service {
-    def getSubscription(subName: String): Task[String]
+    def getSubscription(subscriptionName: String): Task[String]
 
-    def extendSubscription(subData: SubscriptionData): Task[Unit]
+    def extend6For6RatePlan(model: ExtendIntroRatePlanModel): Task[Unit]
 
-    def postponeSubscription(subData: SubscriptionData): Task[Unit]
+    def postpone6For6RatePlan(model: PushBackIntroRatePlanModel): Task[Unit]
+
+    def postponeMainRatePlan(model: PushBackMainRatePlanModel): Task[Unit]
   }
 
-  def getSubscription(subName: String): RIO[Zuora, String] =
-    RIO.accessM(_.get.getSubscription(subName))
+  def getSubscription(subscriptionName: String): RIO[Zuora, String] =
+    RIO.accessM(_.get.getSubscription(subscriptionName))
 
-  def extendSubscription(subData: SubscriptionData): RIO[Zuora, Unit] =
-    RIO.accessM(_.get.extendSubscription(subData))
+  def extend6For6RatePlan(model: ExtendIntroRatePlanModel): RIO[Zuora, Unit] =
+    RIO.accessM(_.get.extend6For6RatePlan(model))
 
-  def postponeSubscription(subData: SubscriptionData): RIO[Zuora, Unit] =
-    RIO.accessM(_.get.postponeSubscription(subData))
+  def postpone6For6RatePlan(model: PushBackIntroRatePlanModel): RIO[Zuora, Unit] =
+    RIO.accessM(_.get.postpone6For6RatePlan(model))
+
+  def postponeMainRatePlan(model: PushBackMainRatePlanModel): RIO[Zuora, Unit] =
+    RIO.accessM(_.get.postponeMainRatePlan(model))
 }

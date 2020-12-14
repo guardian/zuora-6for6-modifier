@@ -49,13 +49,13 @@ object ZuoraLive {
       ZLayer.fromService { accessToken =>
         new Zuora.Service {
 
-          def putSubscription(data: SubscriptionData, body: SubscriptionData => String): Task[Unit] = {
+          def putSubscription[A <: Model](model: A, body: A => String): Task[Unit] = {
             case class PutResponse(success: Boolean)
             val response =
-              HttpWithLongTimeout(s"$host/v1/subscriptions/${data.subscriptionName}")
+              HttpWithLongTimeout(s"$host/v1/subscriptions/${model.subscriptionName}")
                 .header("Authorization", s"Bearer $accessToken")
                 .header("Content-type", "application/json")
-                .put(body(data))
+                .put(body(model))
                 .method("PUT")
                 .asString
             for {
@@ -85,12 +85,14 @@ object ZuoraLive {
             } yield responseBody
           }
 
-          def extendSubscription(data: SubscriptionData): Task[Unit] = {
-            putSubscription(data, PutRequests.extendTo7Weeks)
-          }
+          def extend6For6RatePlan(model: ExtendIntroRatePlanModel): Task[Unit] =
+            putSubscription(model, PutRequests.extendTo7Weeks)
 
-          def postponeSubscription(data: SubscriptionData): Task[Unit] =
-            putSubscription(data, PutRequests.startWeekLater)
+          def postpone6For6RatePlan(model: PushBackIntroRatePlanModel): Task[Unit] =
+            putSubscription(model, PutRequests.start6For6RatePlanWeekLater)
+
+          def postponeMainRatePlan(model: PushBackMainRatePlanModel): Task[Unit] =
+            putSubscription(model, PutRequests.startMainRatePlanWeekLater)
         }
       }
     }
@@ -100,59 +102,77 @@ object ZuoraLive {
 
   object PutRequests {
 
-    def extendTo7Weeks(data: SubscriptionData): String =
+    def extendTo7Weeks(model: ExtendIntroRatePlanModel): String =
       s"""
          |{
          |  "add": [
          |    {
-         |      "contractEffectiveDate": "${data.start6For6Date}",
-         |      "productRatePlanId": "${data.productPlanId6For6}",
+         |      "productRatePlanId": "${model.productPlanId6For6}",
+         |      "contractEffectiveDate": "${model.start6For6Date}",
          |      "chargeOverrides": [
          |        {
-         |          "productRatePlanChargeId": "${data.productChargeId6For6}",
+         |          "productRatePlanChargeId": "${model.productChargeId6For6}",
          |          "billingPeriod": "Specific_Weeks",
          |          "specificBillingPeriod": 7
          |        }
          |      ]
          |    },
          |    {
-         |      "contractEffectiveDate": "${data.startMainDate}",
-         |      "productRatePlanId": "${data.productPlanIdMain}"
+         |      "productRatePlanId": "${model.productPlanIdMain}"
+         |      "contractEffectiveDate": "${model.startMainDate}",
          |    }
          |  ],
          |  "remove": [
          |    {
-         |      "ratePlanId": "${data.planId6For6}",
-         |      "contractEffectiveDate": "${data.start6For6Date}"
+         |      "ratePlanId": "${model.planId6For6}",
+         |      "contractEffectiveDate": "${model.start6For6Date}"
          |    },
          |    {
-         |      "ratePlanId": "${data.planIdMain}",
-         |      "contractEffectiveDate": "${data.start6For6Date}"
+         |      "ratePlanId": "${model.planIdMain}",
+         |      "contractEffectiveDate": "${model.start6For6Date}"
          |    }
          |  ]
          |}
          |""".stripMargin
 
-    def startWeekLater(data: SubscriptionData): String =
+    def start6For6RatePlanWeekLater(model: PushBackIntroRatePlanModel): String =
       s"""
          |{
          |  "add": [
          |    {
-         |      "productRatePlanId": "${data.productPlanId6For6}",
+         |      "productRatePlanId": "${model.productPlanId6For6}",
          |      "contractEffectiveDate": "${Config.keyDatePlusWeek}"
          |    },
          |    {
-         |      "productRatePlanId": "${data.productPlanIdMain}",
+         |      "productRatePlanId": "${model.productPlanIdMain}",
          |      "contractEffectiveDate": "${Config.keyDatePlus7Weeks}"
          |    }
          |  ],
          |  "remove": [
          |    {
-         |      "ratePlanId": "${data.planId6For6}",
+         |      "ratePlanId": "${model.planId6For6}",
          |      "contractEffectiveDate": "${Config.keyDate}"
          |    },
          |    {
-         |      "ratePlanId": "${data.planIdMain}",
+         |      "ratePlanId": "${model.planIdMain}",
+         |      "contractEffectiveDate": "${Config.keyDate}"
+         |    }
+         |  ]
+         |}
+         |""".stripMargin
+
+    def startMainRatePlanWeekLater(model: PushBackMainRatePlanModel): String =
+      s"""
+         |{
+         |  "add": [
+         |    {
+         |      "productRatePlanId": "${model.productPlanIdMain}",
+         |      "contractEffectiveDate": "${Config.keyDatePlusWeek}"
+         |    }
+         |  ],
+         |  "remove": [
+         |    {
+         |      "ratePlanId": "${model.planIdMain}",
          |      "contractEffectiveDate": "${Config.keyDate}"
          |    }
          |  ]
