@@ -1,7 +1,11 @@
 # Zuora 6 for 6 Modifier
 
-This repo holds [a script](src/main/scala/com/gu/zuora6for6modifier/Main.scala) to either extend or
-postpone 6-for-6 Guardian Weekly introductory offers.  
+This repo holds [a script](src/main/scala/com/gu/zuora6for6modifier/Main.scala) to do one of:
+1. extend 6-for-6 Guardian Weekly introductory offers.
+1. postpone 6-for-6 Guardian Weekly introductory offers where the offer begins in a week when Guardian Weekly
+   isn't published.
+1. postpone standard Guardian Weekly rate plans where the rate plan begins in a week when Guardian Weekly
+   isn't published.
 
 The specific use case is when an issue isn't published, which is usually in Christmas week.
 In this case any subs that begin in the week of the unpublished issue have to be postponed to the
