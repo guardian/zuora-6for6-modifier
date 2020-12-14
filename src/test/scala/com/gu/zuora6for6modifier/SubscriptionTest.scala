@@ -1,6 +1,5 @@
 package com.gu.zuora6for6modifier
 
-import io.circe.parser.parse
 import munit.FunSuite
 
 import scala.io.Source
@@ -25,7 +24,7 @@ class SubscriptionTest extends FunSuite {
     assertEquals(
       data,
       Right(
-        SubscriptionData(
+        ExtendIntroRatePlanModel(
           subscriptionName = "subNum",
           productPlanId6For6 = "2c92c0f965f212210165f69b94c92d66",
           productChargeId6For6 = "2c92c0f865f204440165f69f407d66f1",
@@ -55,13 +54,10 @@ class SubscriptionTest extends FunSuite {
     assertEquals(
       data,
       Right(
-        SubscriptionData(
+        PushBackIntroRatePlanModel(
           subscriptionName = "subNum",
           productPlanId6For6 = "2c92a0086619bf8901661aaac94257fe",
-          productChargeId6For6 = "2c92a0086619bf8901661aaac95d5800",
           productPlanIdMain = "2c92a0fe6619b4b301661aa494392ee2",
-          start6For6Date = "2021-01-01",
-          startMainDate = "2021-02-12",
           planId6For6 = "id6for6",
           planIdMain = "idMain"
         )
@@ -85,14 +81,9 @@ class SubscriptionTest extends FunSuite {
     assertEquals(
       data,
       Right(
-        SubscriptionData(
+        PushBackMainRatePlanModel(
           subscriptionName = "subNum",
-          productPlanId6For6 = "",
-          productChargeId6For6 = "",
           productPlanIdMain = "2c92a0fe6619b4b301661aa494392ee2",
-          start6For6Date = "",
-          startMainDate = "",
-          planId6For6 = "",
           planIdMain = "idMain"
         )
       )

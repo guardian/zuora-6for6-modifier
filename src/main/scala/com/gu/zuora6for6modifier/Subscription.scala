@@ -39,7 +39,7 @@ object Subscription {
   private def hasChargeStartingOnDate(date: String)(plan: Plan) =
     plan.ratePlanCharges.headOption.exists { charge => charge.effectiveStartDate == date }
 
-  def extractDataForExtending(subscriptionName: String, json: String): Either[Throwable, SubscriptionData] = {
+  def extractDataForExtending(subscriptionName: String, json: String): Either[Throwable, ExtendIntroRatePlanModel] = {
 
     def plus7Weeks(s: String): String = LocalDate.parse(s).plusWeeks(7).toString
 
@@ -51,7 +51,7 @@ object Subscription {
         .toRight(new RuntimeException("Can't find 6 for 6 plan"))
       charge6For6 <- plan6For6.ratePlanCharges.headOption.toRight(new RuntimeException("Can't find 6 for 6 charge"))
       planMain <- valid.ratePlans.find(isMainPlan).toRight(new RuntimeException("Can't find main plan"))
-    } yield SubscriptionData(
+    } yield ExtendIntroRatePlanModel(
       subscriptionName,
       productPlanId6For6 = plan6For6.productRatePlanId,
       productChargeId6For6 = charge6For6.productRatePlanChargeId,
@@ -81,22 +81,19 @@ object Subscription {
       )("Doesn't include key date")
     } yield subscription
 
-  def extractDataForPostponing(subscriptionName: String, json: String): Either[Throwable, SubscriptionData] = {
-    def plusWeek(s: String): String = LocalDate.parse(s).plusWeeks(1).toString
+  def extractDataForPostponing(
+      subscriptionName: String,
+      json: String
+  ): Either[Throwable, PushBackIntroRatePlanModel] = {
     for {
       sub <- decode[Subscription](json)
       valid <- validForPostponing(sub)
       plan6For6 <- valid.ratePlans.find(isIntroPlan).toRight(new RuntimeException("Can't find 6 for 6 plan"))
-      charge6For6 <- plan6For6.ratePlanCharges.headOption.toRight(new RuntimeException("Can't find 6 for 6 charge"))
       planMain <- valid.ratePlans.find(isMainPlan).toRight(new RuntimeException("Can't find main plan"))
-      chargeMain <- planMain.ratePlanCharges.headOption.toRight(new RuntimeException("Can't find 6 for 6 charge"))
-    } yield SubscriptionData(
+    } yield PushBackIntroRatePlanModel(
       subscriptionName,
       productPlanId6For6 = plan6For6.productRatePlanId,
-      productChargeId6For6 = charge6For6.productRatePlanChargeId,
       productPlanIdMain = planMain.productRatePlanId,
-      start6For6Date = plusWeek(charge6For6.effectiveStartDate),
-      startMainDate = plusWeek(chargeMain.effectiveStartDate),
       planId6For6 = plan6For6.id,
       planIdMain = planMain.id
     )
@@ -117,20 +114,14 @@ object Subscription {
   def extractDataForPostponingMainRatePlan(
       subscriptionName: String,
       json: String
-  ): Either[Throwable, SubscriptionData] = {
-    def plusWeek(s: String): String = LocalDate.parse(s).plusWeeks(1).toString
+  ): Either[Throwable, PushBackMainRatePlanModel] = {
     for {
       sub <- decode[Subscription](json)
       valid <- validForPostponingMainRatePlan(sub)
       planMain <- valid.ratePlans.find(isMainPlan).toRight(new RuntimeException("Can't find main plan"))
-    } yield SubscriptionData(
+    } yield PushBackMainRatePlanModel(
       subscriptionName,
-      productPlanId6For6 = "",
-      productChargeId6For6 = "",
       productPlanIdMain = planMain.productRatePlanId,
-      start6For6Date = "",
-      startMainDate = "",
-      planId6For6 = "",
       planIdMain = planMain.id
     )
   }
