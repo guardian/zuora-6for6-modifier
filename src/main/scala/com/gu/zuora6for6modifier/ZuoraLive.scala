@@ -118,8 +118,8 @@ object ZuoraLive {
          |      ]
          |    },
          |    {
-         |      "productRatePlanId": "${model.productPlanIdMain}"
-         |      "contractEffectiveDate": "${model.startMainDate}",
+         |      "productRatePlanId": "${model.productPlanIdMain}",
+         |      "contractEffectiveDate": "${model.startMainDate}"
          |    }
          |  ],
          |  "remove": [
