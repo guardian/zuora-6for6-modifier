@@ -1,4 +1,4 @@
-name: Scala Steward PR handling
+name: PR handling
 
 on:
   pull_request:
@@ -6,8 +6,7 @@ on:
 
 jobs:
   test:
-    name: Test Scala Steward PR
-    if: github.actor == 'scala-steward'
+    name: Test PR
     runs-on: ubuntu-latest
     steps:
     - 
@@ -17,6 +16,7 @@ jobs:
       name: Set up Java
       uses: actions/setup-java@v2.0.0
       with:
+        distribution: adopt
         java-version: 11
     - 
       name: Run tests
