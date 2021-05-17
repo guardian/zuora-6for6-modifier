@@ -1,4 +1,4 @@
-scalaVersion := "2.13.5"
+scalaVersion := "2.13.6"
 
 val circeVersion = "0.13.0"
 
