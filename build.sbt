@@ -1,6 +1,6 @@
 scalaVersion := "2.13.6"
 
-val circeVersion = "0.14.0"
+val circeVersion = "0.14.1"
 
 libraryDependencies ++= Seq(
   "com.typesafe" % "config" % "1.4.1",
