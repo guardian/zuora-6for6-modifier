@@ -8,7 +8,7 @@ libraryDependencies ++= Seq(
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
   "org.scalaj" %% "scalaj-http" % "2.4.2",
-  "org.scalameta" %% "munit" % "0.7.27" % Test
+  "org.scalameta" %% "munit" % "0.7.29" % Test
 )
 
 testFrameworks += new TestFramework("munit.Framework")
