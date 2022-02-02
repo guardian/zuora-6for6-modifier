@@ -3,7 +3,7 @@ scalaVersion := "2.13.8"
 val circeVersion = "0.14.1"
 
 libraryDependencies ++= Seq(
-  "com.typesafe" % "config" % "1.4.1",
+  "com.typesafe" % "config" % "1.4.2",
   "dev.zio" %% "zio" % "1.0.7",
   "io.circe" %% "circe-generic" % circeVersion,
   "io.circe" %% "circe-parser" % circeVersion,
